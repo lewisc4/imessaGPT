@@ -1,7 +1,7 @@
-numpy==1.19.5
-pandas==1.2.3
-scikit_learn==1.0.2
-setuptools==42.0.2
+numpy
+pandas
+scikit_learn
+setuptools
 torch==1.13.0
-tqdm==4.62.3
+tqdm
 transformers==4.20.0
