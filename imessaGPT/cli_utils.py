@@ -9,57 +9,59 @@ from os.path import join, splitext
 
 # The CWD of the script importing this module
 CWD = Path().resolve()
-OUTPUT_DIR = CWD / 'outputs'
+# Default directory that houses all raw/processed training data
+DATA_DIR = CWD / 'data'
+# Default directory that houses all model outputs
+MODEL_DIR = CWD / 'model_outputs'
 
-# The "root" data dir, containing all project resource files (by default)
-CHAT_DB_FILE = CWD / 'chat.db'
-DATASET_FILE = CWD / 'dataset.csv'
+# Use iMessage DB as the default source of raw, unprocessed message data
+RAW_FILE = DATA_DIR / 'chat.db'
+MESSAGE_COLUMN = 'text'
+# Default file to save preprocessed/cleaned messages to
+PROCESSED_FILE = DATA_DIR / 'dataset.csv'
+# Default file to use as a dataset for training
+DATASET_FILE = DATA_DIR / 'dataset.csv'
 
 
-def create_parser():
+def parse_preprocess_args():
 	'''
-	This function creates a default, general argument parser to act as a 
-	parent for scripts in this project that are run from the CLI.
-	This function is used in preprocess.py, train.py, and evaluate.py.
+	This function creates a preprocessing-related argument parser and parses a
+	(preprocessing) script's input arguments.
+
 	Default arguments have the meaning of being a reasonable default value.
+	To change the parameters, pass them to the script. For example:
+
+	python3 train.py --data_dir=data --phone_number=+18889990000
 	'''
-
-	# General-purpose parser to use for different scripts
-	# Not intended to be used as a standalone parser in this project
-	parser = argparse.ArgumentParser(
-		description='General-use parser for CLI scripts in this project',
-		add_help=False, # Don't add help, only because this is a parent parser
-	)
-
-	# File path arguments used throughout CLI scripts
+	parser = argparse.ArgumentParser('Preprocess conversation data for GPT-2.')
 	parser.add_argument(
-		'--chat_file',
+		'--data_dir',
 		type=str,
-		default=str(CHAT_DB_FILE),
-		help='Path to the the chat.db file that contains the iMessages.',
+		default=str(DATA_DIR),
+		help='Path to the directory that houses all raw/processed data files.',
 	)
 	parser.add_argument(
-		'--dataset_file',
+		'--raw_file',
 		type=str,
-		default=str(DATASET_FILE),
-		help='Path to the (.csv) file that contains the processed dataset.',
+		default=str(RAW_FILE),
+		help='Path to the file with the initial, unprocessed message data.',
 	)
 	parser.add_argument(
-		'--output_dir',
+		'--message_col',
 		type=str,
-		default=str(OUTPUT_DIR),
-		help='Path to the directory where script outputs will be saved.',
+		default=MESSAGE_COLUMN,
+		help='Name of the column in raw_file that stores message text.',
 	)
 	parser.add_argument(
-		'--seed',
-		type=int,
-		default=7,
-		help='Seed to use for randomness.',
+		'--processed_file',
+		type=str,
+		default=str(PROCESSED_FILE),
+		help='Path to the .csv file with the processed data (from --raw_file).',
 	)
 	parser.add_argument(
 		'--phone_number',
 		type=str,
-		default='+18889374895',
+		default='+18889990000',
 		help='The phone number to use for iMessage conversations.'
 	)
 	parser.add_argument(
@@ -74,40 +76,98 @@ def create_parser():
 		default='RECEIVER',
 		help='Name of person receiving the messages (i.e., person with phone_number).',
 	)
-	# Return parser to use as a parent, so we DON'T want to call parse_args()
-	return parser
+	parser.add_argument(
+		'--keep_reactions',
+		default=False,
+		action='store_true',
+		help='Whether to keep "reaction" iMessages or not when cleaning.',
+	)
+	parser.add_argument(
+		'--keep_urls',
+		default=False,
+		action='store_true',
+		help='Whether to keep urls in messages or not when cleaning.',
+	)
+	parser.add_argument(
+		'--min_len',
+		type=int,
+		default=1,
+		help='Minimum length (in chars) of messages to keep when cleaning.',
+	)
+	# Parse and validate the provided arguments
+	args = parser.parse_args()
+	valid_args = validate_preprocess_args(args)
+	return valid_args
 
 
-def parse_train_args(parents=[]):
+def validate_preprocess_args(args):
+	'''Validates/updates the CLI arguments parsed in the parse_args function,
+	defined in this file.
+
+	Args:
+		args (Namespace): The CLI arguments to validate
+	'''
+	valid = copy.deepcopy(args)
+	# Create data dir if it doesn't exist (where raw/processed data is stored)
+	os.makedirs(valid.data_dir, exist_ok=True)
+	# Update file names to use the valid paths
+	valid.raw_file = join(valid.data_dir, valid.raw_file)
+	valid.processed_file = join(valid.data_dir, valid.processed_file)
+	return valid
+
+
+def parse_train_args():
 	'''
 	This function creates a training-related argument parser and parses a
 	(training) script's input arguments.
 
 	Default arguments have the meaning of being a reasonable default value.
-	To change the parameters, pass them to the script. For example, assuming:
-	we have a parent parser with a processed_dir argument:
+	To change the parameters, pass them to the script. For example:
 
-	python3 train.py --dataset_dir=dataset --learning_rate=2e-3
+	python3 train.py --data_dir=data --learning_rate=2e-3
 	'''
-
-	# Create parser based on the parent parser(s)
-	# An empty list ([]) is equivalent to no parents
-	parser = argparse.ArgumentParser(
-		parents=parents,
-		description='Train a model on a network/graph of reddit comment data',
+	parser = argparse.ArgumentParser('Train a GPT-2 model on conversation data.')
+	parser.add_argument(
+		'--data_dir',
+		type=str,
+		default=str(DATA_DIR),
+		help='Path to the directory that houses all raw/processed data files.',
 	)
-
+	parser.add_argument(
+		'--dataset',
+		type=str,
+		default=str(DATASET_FILE),
+		help='Path to the dataset file to use for training.',
+	)
+	parser.add_argument(
+		'--model_dir',
+		type=str,
+		default=str(MODEL_DIR),
+		help='Path to the directory where model outputs will be saved.',
+	)
 	parser.add_argument(
 		'--model_file',
 		type=str,
 		default='conversational_model.pt',
-		help='The name of the model (.pt) file to save to/load from',
+		help='The name of the model (.pt) file to save to/load from.',
+	)
+	parser.add_argument(
+		'--num_examples',
+		type=int,
+		default=None,
+		help='Number of dataset examples to use. None means use ALL examples.',
 	)
 	parser.add_argument(
 		'--percent_val',
 		type=float,
 		default=0.15,
 		help='Percentage of the data to use for validation (train_val_size * percent_train).',
+	)
+	parser.add_argument(
+		'--seed',
+		type=int,
+		default=7,
+		help='Seed to use for randomness (in train/val/test splits).',
 	)
 	parser.add_argument(
 		'--batch_size',
@@ -132,7 +192,7 @@ def parse_train_args(parents=[]):
 	parser.add_argument(
 		'--device',
 		default='cuda' if torch.cuda.is_available() else 'cpu',
-		help='Device (cuda or cpu) on which the code should run',
+		help='Device (cuda or cpu) on which the code should run.',
 	)
 	parser.add_argument(
 		'--non_blocking',
@@ -163,12 +223,6 @@ def parse_train_args(parents=[]):
 		type=int,
 		default=5,
 		help='Total number of training epochs to perform.',
-	)
-	parser.add_argument(
-		'--eval_every_steps',
-		type=int,
-		default=40,
-		help='Perform evaluation every n network updates.',
 	)
 	parser.add_argument(
 		'--lr_scheduler_type',
@@ -228,7 +282,7 @@ def parse_train_args(parents=[]):
 		action='store_true',
 		help='Whether to remotely upload the trained model (to WandB) or not.',
 	)
-
+	# Parse and validate the provided arguments
 	args = parser.parse_args()
 	valid_args = validate_train_args(args)
 	return valid_args
@@ -242,12 +296,13 @@ def validate_train_args(args):
 		args (Namespace): The CLI arguments to validate
 	'''
 	valid = copy.deepcopy(args)
-	# Check if output dir (where models are saved) exists, if not create it
-	os.makedirs(valid.output_dir, exist_ok=True)
+	valid.dataset = join(valid.data_dir, valid.dataset)
+	# Create model directory if it doesn't exist (where model outputs are saved)
+	os.makedirs(valid.model_dir, exist_ok=True)
 	# Update file names to use the valid paths
 	# Also, strip the last extension (if it exists) and add a valid extension
 	valid.model_file = join(
-		valid.output_dir,
+		valid.model_dir,
 		splitext(valid.model_file)[0] + '.pt',
 	)
 	return valid

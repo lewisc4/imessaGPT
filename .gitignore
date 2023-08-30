@@ -1,0 +1,9 @@
+.DS_Store
+.ipynb_checkpoints
+cli/data
+cli/model_outputs
+cli/wandb
+cli/train_log.log
+cli/.DS_Store
+imessaGPT/__pycache__
+imessaGPT/.DS_Store

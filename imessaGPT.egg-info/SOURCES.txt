@@ -1,0 +1,7 @@
+README.md
+setup.py
+imessaGPT.egg-info/PKG-INFO
+imessaGPT.egg-info/SOURCES.txt
+imessaGPT.egg-info/dependency_links.txt
+imessaGPT.egg-info/requires.txt
+imessaGPT.egg-info/top_level.txt

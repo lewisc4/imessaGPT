@@ -7,7 +7,7 @@ import logging
 import pprint
 import wandb
 
-from imessaGPT.cli_utils import create_parser, parse_train_args
+from imessaGPT.cli_utils import parse_train_args
 
 
 class TrainLogger:
@@ -44,11 +44,7 @@ class TrainLogger:
 		Args:
 			train_args (Namespace, optional): Training CLI args. Defaults to None.
 		'''
-		if train_args is None:
-			parent_parser = create_parser()
-			self.args = parse_train_args(parents=[parent_parser])
-		else:
-			self.args = train_args
+		self.args = parse_train_args() if train_args is None else train_args
 
 	def set_log_level(self, level='normal'):
 		self.level = level if level in self.AVAILABLE_LOG_LEVELS else 'normal'
@@ -81,12 +77,10 @@ class TrainLogger:
 		else:
 			self.logger.info('\n> Model is NOT being watched/tracked on WandB')
 
-	def training_overview(self, steps_per_epoch):
+	def training_overview(self):
 		'''Logs an overview of training, typically before it begins
-
-		Args:
-			steps_per_epoch (int): # of steps/epoch (train dataloader's length)
 		'''
+		steps_per_epoch = int(self.args.max_steps / self.args.num_epochs)
 		self.logger.info('\n***** Beginning Training *****')
 		self.logger.info(f'> Epochs: {self.args.num_epochs}')
 		self.logger.info(f'> Steps per epoch: {steps_per_epoch}')
@@ -138,7 +132,7 @@ class TrainLogger:
 		if self.step % self.args.checkpoint_every == 0:
 			self.logger.info(
 				f'\n> (Epoch={self.epoch}, Step={self.step})'
-				f' - Saving model checkpoint to: {self.args.output_dir}'
+				f' - Saving model checkpoint to: {self.args.model_dir}'
 			)
 
 	def training_summary(self, best_loss):
@@ -151,7 +145,7 @@ class TrainLogger:
 		self.logger.info(f'> Best (lowest) loss: {best_loss}')
 		self.logger.info(f'> Epochs: {self.epoch}')
 		self.logger.info(f'> Total steps: {self.step}')
-		self.logger.info(f'> Saving best model to: {self.args.output_dir}')
+		self.logger.info(f'> Saving best model to: {self.args.model_dir}')
 
 	def upload_model(self):
 		'''Uploads a model to WandB
@@ -169,4 +163,4 @@ class TrainLogger:
 		'''Logs that the training script has finished successfully w/out errors
 		'''
 		self.logger.info('\n> Script finished successfully without errors')
-		self.logger.info(f'> Final model saved in {self.args.output_dir}')
+		self.logger.info(f'> Final model saved in {self.args.model_dir}')

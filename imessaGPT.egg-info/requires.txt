@@ -1,0 +1,7 @@
+numpy
+pandas
+scikit_learn
+setuptools
+torch==1.13.0
+tqdm
+transformers==4.20.0

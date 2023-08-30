@@ -6,11 +6,10 @@ import pandas as pd
 from transformers import GPT2Tokenizer
 from tqdm.auto import tqdm
 from sklearn.model_selection import train_test_split
-from torch.utils.data import Dataset, Subset, DataLoader
-from imessaGPT.imessage_db import Conversation
+from torch.utils.data import Dataset, Subset
 
 
-class ConversationDataset(Dataset, Conversation):
+class ConversationDataset(Dataset):
 	'''Dataset (torch.utils.data.Dataset) from an iMessage conversation.
 	'''
 	# Special tokens to use in examples
@@ -19,8 +18,8 @@ class ConversationDataset(Dataset, Conversation):
 	EOS_TOKEN = '<|endoftext|>'
 	PAD_TOKEN = '<|paddingoftext|>'
 
-	def __init__(self, db_file, phone_number, sender, receiver):
-		super().__init__(db_file, phone_number, sender, receiver)
+	def __init__(self, messages):
+		self.messages = messages
 		self.samples = []
 		self.input_ids = []
 		self.attention_masks = []
